@@ -6,7 +6,7 @@ Emily Mackevicius and Andrew Bahle - FeeLab :notes: :bird: 2018
 ### Description
 SeqNMF is an algorithm which uses regularized convolutional non-negative matrix factorization to extract repeated sequential patterns from high-dimensional data. It has been validated using neural calcium imaging, spike data, and spectrograms, and allows the discovery of patterns directly from timeseries data without reference to external markers.
 
-For more information see our [**preprint**](https://doi.org/10.1101/273128).
+For more information see our [**preprint**](https://www.biorxiv.org/content/early/2018/03/02/273128).
 
 ### Usage
 The main function is seqNMF.m and it can be called 
