@@ -6,7 +6,7 @@
 % Andrew Bahle and Emily Mackevicius 1.26.2018
 %
 % See paper: 
-%   XXXXXXXXXXXXX
+% https://www.biorxiv.org/content/early/2018/03/02/273128
 %% Generate some synthetic data
 number_of_seqences = 2;
 T = 3000; % length of data to generate

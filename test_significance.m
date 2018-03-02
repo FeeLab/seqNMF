@@ -62,14 +62,16 @@ for n = 1:nnull
     Wnull = zeros(N,K,L);
     for k = 1:K
         for ni = 1:N
-            Wnull(ni,k,:) = circshift(W(ni,k,:),randi(L));
+            %Wnull(ni,k,:) = circshift(W(ni,k,:),randi(L));
+            Wnull(ni,k,:) = circshift(W(ni,k,:),[0,randi(L)]);
         end
     end
     %figure, imagesc(squeeze(Wnull(:,1,:))), colormap(gca, flip(gray)),axis off
     % Calculate WTX
     WTX = zeros(K, T);
     for l = 1 : L
-        X_shifted = circshift(X,-l+1,2);       
+        %X_shifted = circshift(X,-l+1,2);       
+        X_shifted = circshift(X,[0,-l+1]);       
         WTX = WTX + Wnull(:, :, l)' * X_shifted;
     end   
     %figure, histogram(WTX(1,:),0:1:100,'FaceColor','k')
@@ -81,7 +83,8 @@ end
 
 WTX = zeros(K, T);
 for l = 1 : L
-    X_shifted = circshift(X,-l+1,2);       
+    %X_shifted = circshift(X,-l+1,2);       
+    X_shifted = circshift(X,[0,-l+1]);       
     WTX = WTX + W(:, :, l)' * X_shifted;
 end   
 skew = skewness(WTX,1,2);

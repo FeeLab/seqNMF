@@ -23,7 +23,8 @@ T = T+2*L;
 X_hat = zeros(N,T);
 
 for tau = 1:L % go through every offset from 1:tau
-    X_hat = X_hat + W(:, :, tau) * circshift(H,tau-1,2);
+    %X_hat = X_hat + W(:, :, tau) * circshift(H,tau-1,2);
+    X_hat = X_hat + W(:, :, tau) * circshift(H,[0,tau-1]);
 end
 
 % undo zer0padding

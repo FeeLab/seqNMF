@@ -72,7 +72,7 @@ function [W, H, cost,loadings,power] = seqNMF(X, varargin)
 %   Adapted from NMF toolbox by Colin Vaz 2015 (http://sail.usc.edu)
 %
 %   Please cite our paper: 
-%       XXXXXXXXXXXXXXXXXXXXX
+%   https://www.biorxiv.org/content/early/2018/03/02/273128
 %% parse function inputs
 
 % Check that we have non-negative data
@@ -113,8 +113,10 @@ for iter = 1 : params.maxiter
     WTX = zeros(K, T);
     WTXhat = zeros(K, T);
     for l = 1 : L
-        X_shifted = circshift(X,-l+1,2); 
-        Xhat_shifted = circshift(Xhat,-l+1,2); 
+        %X_shifted = circshift(X,-l+1,2); 
+        X_shifted = circshift(X,[0,-l+1]); 
+        %Xhat_shifted = circshift(Xhat,-l+1,2); 
+        Xhat_shifted = circshift(Xhat,[0,-l+1]); 
         WTX = WTX + W(:, :, l)' * X_shifted;
         WTXhat = WTXhat + W(:, :, l)' * Xhat_shifted;
     end   
@@ -159,7 +161,8 @@ for iter = 1 : params.maxiter
         end
         for l = 1 : L % could parallelize to speed up for long L
             % Compute terms for standard CNMF W update
-            H_shifted = circshift(H,l-1,2);
+            %H_shifted = circshift(H,l-1,2);
+            H_shifted = circshift(H,[0,l-1]);
             XHT = X * H_shifted';
             XhatHT = Xhat * H_shifted';
 

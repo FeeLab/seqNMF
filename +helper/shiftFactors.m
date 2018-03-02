@@ -16,10 +16,14 @@ function [W,H] = shiftFactors(W,H)
         % compute center of mass
         temp = sum(squeeze(W(:,k,:)),1);
         cmass = max(floor(sum(temp.*(1:length(temp)))/sum(temp)),1);          
-        Wpad(:,k,:) = circshift(squeeze(Wpad(:,k,:)),center-cmass,2); 
-        H(k,:) = circshift(H(k,:),cmass-center); 
+        %Wpad(:,k,:) = circshift(squeeze(Wpad(:,k,:)),center-cmass,2);
+        %Changing for compatibility with 2016, this is the same
+        Wpad(:,k,:) = circshift(squeeze(Wpad(:,k,:)),[0,center-cmass]); 
+        %H(k,:) = circshift(H(k,:),cmass-center); 
+        H(k,:) = circshift(H(k,:),[0,cmass-center]); 
     end
-    
+ 
+
     % undo zero pad
     W = Wpad(:,:,(L+1):(end-L));
 
