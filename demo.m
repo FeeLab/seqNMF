@@ -140,7 +140,7 @@ xlabel('# significant factors')
 ylabel('% seqNMF runs')
 
 %% Plot factor-triggered song examples and rastors
-
+addpath(genpath('misc_elm')); 
 figure; HTriggeredSpec(H,trainSONG,VIDEOfs,SONGfs,Lsong); 
 
 figure; HTriggeredRaster(H,trainNEURAL(indSort,:),Lneural);
