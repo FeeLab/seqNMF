@@ -90,7 +90,7 @@ set(gca, 'ydir', 'reverse')
 axis off
 %% plot H's
 axH = subplot('Position', [m+ww m+hdata wdata hh]);
-Hrescaled = squeeze(sum(sum(W,1),3))'.*H; % rescale by approximate loading
+Hrescaled = repmat(squeeze(sum(sum(W,1),3))',1,T).*H; % rescale by approximate loading
 dn = prctile(Hrescaled(:),100)/2; 
 for ki = K:-1:1
     Xs = [1 1:length(indplot) length(indplot)]; 

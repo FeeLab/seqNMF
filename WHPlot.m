@@ -134,7 +134,7 @@ if plotWflat
 end
 %% plot H's
 axH = subplot('Position', [m+ww m+hdata wdata hh]);cla
-Hrescaled = squeeze(sum(sum(W,1),3))'.*H; % rescale by approximate loading
+Hrescaled = repmat(squeeze(sum(sum(W,1),3))',1,T).*H; % rescale by approximate loading
 dn = prctile(Hrescaled(:)+eps,100)/2;
 for ki = K:-1:1
     Xs = [1 1:length(indplot) length(indplot)]; 
