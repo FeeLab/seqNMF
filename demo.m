@@ -191,7 +191,7 @@ RmseTest = zeros(length(Ks), nReps);
 figure
 [~,Kplot] = meshgrid(1:nReps, Ks); 
 Kplot = Kplot + rand(length(Ks), nReps)*.25-.125; 
-for K = Ks
+parfor K = Ks
     for repi = 1:nReps
         display(['Cross validation on masked test set; Testing K = ' num2str(K) ', rep ' num2str(repi)])
         rng('shuffle')
