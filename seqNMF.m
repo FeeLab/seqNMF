@@ -6,8 +6,8 @@ function [W, H, cost,loadings,power] = seqNMF(X, varargin)
 %       'K', 10, 'L', 20, 'lambda', .1, ...        % Other inputs optional
 %       'W_init', W_init, 'H_init', H_init, ...
 %       'showPlot', 1, 'maxiter', 20, 'tolerance', -Inf, 'shift', 1, ... 
-%       'competeW', 0, 'competeH', 0, 'lambdaL1W', 0, 'lambdaL1H', 0, ...
-%       'lambdaOrthoH', 0, 'lambdaOrthoW', 0)
+%       'lambdaL1W', 0, 'lambdaL1H', 0, ...
+%       'lambdaOrthoH', 0, 'lambdaOrthoW', 0, 'M', M)
 %
 % ------------------------------------------------------------------------
 % DESCRIPTION:
@@ -50,6 +50,7 @@ function [W, H, cost,loadings,power] = seqNMF(X, varargin)
 % 'lambdaOrthoH'    0                                   ||HSH^T||_1,i~=j; Encourages events-based factorizations
 % 'lambdaOrthoW'    0                                   ||Wflat^TWflat||_1,i~=j; ; Encourages parts-based factorizations
 % 'useWupdate'      1                                   Wupdate for cross orthogonality often doesn't change results much, and can be slow, so option to remove  
+% 'M'               ones(N,T)                           Masking matrix if excluding a random test set from the fit
 % ------------------------------------------------------------------------
 % OUTPUTS:
 %
@@ -63,6 +64,9 @@ function [W, H, cost,loadings,power] = seqNMF(X, varargin)
 % power                     Fraction power in data explained 
 %                               by whole reconstruction
 %
+%                           Note, if doing fit with masked (held-out) data,
+%                               the cost and power do not include masked
+%                               (M==0) test set elements
 % ------------------------------------------------------------------------
 % CREDITS:
 %   Emily Mackevicius and Andrew Bahle, 2/1/2018
@@ -72,7 +76,7 @@ function [W, H, cost,loadings,power] = seqNMF(X, varargin)
 %   Adapted from NMF toolbox by Colin Vaz 2015 (http://sail.usc.edu)
 %
 %   Please cite our paper: 
-%   https://www.biorxiv.org/content/early/2018/03/02/273128
+%       https://www.biorxiv.org/content/early/2018/03/02/273128
 %% parse function inputs
 
 % Check that we have non-negative data
@@ -80,17 +84,17 @@ if min(X(:)) < 0
     error('Negative values in data!');
 end
 
-% Globally rescale data to avoid potential overflow/underflow
-% X = X / max(X(:));
-
-
 % Parse inputs
 [X,N,T,K,L,params] = parse_seqNMF_params(X, varargin);
 
 %% initialize
 W = params.W_init;
 H = params.H_init;
-Xhat = helper.reconstruct(W, H);
+
+Xhat = helper.reconstruct(W, H); 
+mask = find(params.M == 0); % find masked (held-out) indices 
+X(mask) = Xhat(mask); % replace data at masked elements with reconstruction, so masked datapoints do not effect fit
+
 smoothkernel = ones(1,(2*L)-1);  % for factor competition
 smallnum = max(X(:))*1e-6; 
 lasttime = 0;
@@ -113,9 +117,7 @@ for iter = 1 : params.maxiter
     WTX = zeros(K, T);
     WTXhat = zeros(K, T);
     for l = 1 : L
-        %X_shifted = circshift(X,-l+1,2); 
         X_shifted = circshift(X,[0,-l+1]); 
-        %Xhat_shifted = circshift(Xhat,-l+1,2); 
         Xhat_shifted = circshift(Xhat,[0,-l+1]); 
         WTX = WTX + W(:, :, l)' * X_shifted;
         WTXhat = WTXhat + W(:, :, l)' * Xhat_shifted;
@@ -152,7 +154,9 @@ for iter = 1 : params.maxiter
     
     if ~params.W_fixed
     % Update each Wl separately
-        Xhat = helper.reconstruct(W, H);  
+        Xhat = helper.reconstruct(W, H); 
+        mask = find(params.M == 0); % find masked (held-out) indices 
+        X(mask) = Xhat(mask); % replace data at masked elements with reconstruction, so masked datapoints do not effect fit
         if params.lambdaOrthoW>0
             Wflat = sum(W,3);
         end
@@ -161,13 +165,12 @@ for iter = 1 : params.maxiter
         end
         for l = 1 : L % could parallelize to speed up for long L
             % Compute terms for standard CNMF W update
-            %H_shifted = circshift(H,l-1,2);
             H_shifted = circshift(H,[0,l-1]);
             XHT = X * H_shifted';
             XhatHT = Xhat * H_shifted';
 
             % Compute regularization terms for W update
-            if params.lambda>0 && params.useWupdate; % Often get similar results with just H update, so optionto skip W update
+            if params.lambda>0 && params.useWupdate; % Often get similar results with just H update, so option to skip W update
                 dRdW = params.lambda.*XS*(H_shifted')*(~eye(K)); 
             else
                 dRdW = 0;
@@ -183,7 +186,9 @@ for iter = 1 : params.maxiter
         end
     end
     % Calculate cost for this iteration
-    Xhat = helper.reconstruct(W, H); 
+    Xhat = helper.reconstruct(W, H);    
+    mask = find(params.M == 0); % find masked (held-out) indices 
+    X(mask) = Xhat(mask); % replace data at masked elements with reconstruction, so masked datapoints do not effect fit
     cost(iter+1) = sqrt(mean((X(:)-Xhat(:)).^2));
 
     % Plot to show progress
@@ -237,6 +242,7 @@ end
         addOptional(p,'lambdaOrthoW',0); % for this regularization: ||Wflat^TWflat||_1,i~=j
         addOptional(p,'lambdaOrthoH',0); % for this regularization: ||HSH^T||_1,i~=j
         addOptional(p,'useWupdate',1); % W update for cross orthogonality often doesn't change results much, and can be slow, so option to skip it 
+        addOptional(p,'M',nan); % Masking matrix: default is ones; set elements to zero to hold out as masked test set
         parse(p,inputs{:});
         L = p.Results.L; 
         K = p.Results.K; 
@@ -255,6 +261,10 @@ end
         else
             params.H_init = [zeros(K,L),params.H_init,zeros(K,L)];
         end
+        if isnan(params.M)
+            params.M = ones(N,T);
+        else
+            params.M = [ones(N,L),params.M,ones(N,L)];
+        end
     end
-
 end

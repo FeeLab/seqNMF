@@ -145,3 +145,69 @@ figure; HTriggeredSpec(H,trainSONG,VIDEOfs,SONGfs,Lsong);
 
 figure; HTriggeredRaster(H,trainNEURAL(indSort,:),Lneural);
 
+%% Example parts-based and events-based factorizations
+K = 3;
+L = 50;
+lambda =0;
+X = NEURAL; 
+
+% run seqNMF with lambdaOrthoH -> events based
+lambdaOrthoH = .1; % favor events-based (these can take any value, don't need to be zero and one)
+lambdaOrthoW = 0;
+display('Running seqNMF on simulated data, lambdaOrthoH -> events based')
+figure; 
+[W,H] = seqNMF(X,'K',K, 'L', L,'lambda', lambda, ...
+    'lambdaOrthoH', lambdaOrthoH, 'lambdaOrthoW', lambdaOrthoW);
+
+% sort neurons and plot
+[max_factor, L_sort, max_sort, hybrid] = helper.ClusterByFactor(W(:,:,:),1);
+indSort = hybrid(:,3);
+tstart = 180; % plot data starting at this timebin
+WHPlot(W(indSort,:,:),H(:,tstart:end), X(indSort,tstart:end), ...
+    1,trainSONG(:,floor(tstart*SONGfs/VIDEOfs):end)); title('lambdaOrthoH -> events based')
+
+% run seqNMF with lambdaOrthoW -> parts based
+figure; 
+lambdaOrthoH = 0;  
+lambdaOrthoW = 1; % favor parts-based (these can take any value, don't need to be zero and one)
+display('Running seqNMF on simulated data, lambdaOrthoW -> parts based')
+[W,H] = seqNMF(X,'K',K, 'L', L,'lambda', lambda, ...
+    'lambdaOrthoH', lambdaOrthoH, 'lambdaOrthoW', lambdaOrthoW);
+
+% sort neurons and plot
+[max_factor, L_sort, max_sort, hybrid] = helper.ClusterByFactor(W(:,:,:),1);
+indSort = hybrid(:,3);
+WHPlot(W(indSort,:,:),H(:,:), X(indSort,:), ...
+    1,trainSONG(:,:)); title('lambdaOrthoW -> parts based')
+
+%% K sweep with masked cross-validation
+nReps = 5; % increase if patient
+Ks = 1:8; % increase if patient
+L = 50;
+X = NEURAL; 
+[N,T] = size(NEURAL);
+RmseTrain = zeros(length(Ks), nReps);
+RmseTest = zeros(length(Ks), nReps);
+figure
+[~,Kplot] = meshgrid(1:nReps, Ks); 
+Kplot = Kplot + rand(length(Ks), nReps)*.25-.125; 
+for K = Ks
+    for repi = 1:nReps
+        display(['Cross validation on masked test set; Testing K = ' num2str(K) ', rep ' num2str(repi)])
+        rng('shuffle')
+        M = rand(N,T)>.05; % create masking matrix (0's are test set, not used for fit)
+        [W,H] = seqNMF(X,'K', K, 'L', L,'lambda', 0,'showPlot', 0, 'M', M);
+        Xhat = helper.reconstruct(W,H); 
+        RmseTrain(K,repi) = sqrt(sum(M(:).*(X(:)-Xhat(:)).^2)./sum(M(:)));
+        RmseTest(K,repi) = sqrt(sum((~M(:)).*(X(:)-Xhat(:)).^2)./sum(~M(:)));
+    end
+end
+
+clf; scatter(Kplot(:), RmseTrain(:), 'r', 'markerfacecolor', 'flat'); 
+hold on; 
+scatter(Kplot(:), RmseTest(:), 'b', 'markerfacecolor', 'flat'); 
+plot(mean(RmseTrain,2), 'r')
+plot(mean(RmseTest,2), 'b')
+xlabel('K'); ylabel('RMSE')
+legend('Train', 'Test', 'location', 'northwest')
+drawnow; shg
