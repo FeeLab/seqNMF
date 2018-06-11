@@ -63,7 +63,7 @@ for n = 1:nnull
     for k = 1:K
         for ni = 1:N
             %Wnull(ni,k,:) = circshift(W(ni,k,:),randi(L));
-            Wnull(ni,k,:) = circshift(W(ni,k,:),[0,randi(L)]);
+            Wnull(ni,k,:) = circshift(W(ni,k,:),[0,0,randi(L)]);
         end
     end
     %figure, imagesc(squeeze(Wnull(:,1,:))), colormap(gca, flip(gray)),axis off
