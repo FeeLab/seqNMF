@@ -8,9 +8,9 @@
 % See paper: 
 % https://www.biorxiv.org/content/early/2018/03/02/273128
 %% Generate some synthetic data
-number_of_seqences = 2;
+number_of_seqences = 3;
 T = 3000; % length of data to generate
-Nneurons = [10;10]; % number of neurons in each sequence
+Nneurons = 10*ones(number_of_seqences,1); % number of neurons in each sequence
 Dt = 3.*ones(number_of_seqences,1); % gap between each member of the sequence
 NeuronNoise = 0.001; % probability of added noise in each bin
 SeqNoiseTime = zeros(number_of_seqences,1); % Jitter parameter = 0%
@@ -20,7 +20,7 @@ X = generate_data(T,Nneurons,Dt,NeuronNoise,SeqNoiseTime,SeqNoiseNeuron,0,0,0,0,
 %% Fit with seqNMF
 K = 5;
 L = 50;
-lambda =.002;
+lambda =.005;
 shg; clf
 display('Running seqNMF on simulated data (2 simulated sequences + noise)')
 [W,H] = seqNMF(X,'K',K, 'L', L,'lambda', lambda);
@@ -28,6 +28,32 @@ display('Running seqNMF on simulated data (2 simulated sequences + noise)')
 %% Look at factors
 figure; SimpleWHPlot(W,H); title('SeqNMF reconstruction')
 figure; SimpleWHPlot(W,H,X); title('SeqNMF factors, with raw data')
+
+%% Procedure for choosing K
+tic
+Ws = {};
+Hs = {};
+numfits = 3; %number of fits to compare
+for k = 1:10
+    display(sprintf('running seqNMF with K = %i',k))
+    for ii = 1:numfits
+        [Ws{ii,k},Hs{ii,k}] = seqNMF(X,'K',k, 'L', L,'lambda', 0,'maxiter',30,'showplot',0); 
+        % note that max iter set low (30iter) for speed in demo (not recommended in practice)
+    end
+    inds = nchoosek(1:numfits,2);
+    for i = 1:size(inds,1) % consider using parfor for larger numfits
+            Diss(i,k) = helper.DISSX(Hs{inds(i,1),k},Ws{inds(i,1),k},Hs{inds(i,2),k},Ws{inds(i,2),k});
+    end
+    
+end
+%% Plot Diss and choose K with the minimum average diss.
+figure,
+plot(1:10,Diss,'ko'), hold on
+h1 = plot(1:10,median(Diss,1),'k-','linewidth',2);
+h2 = plot([3,3],[0,0.5],'r--');
+legend([h1 h2], {'median Diss','true K'})
+xlabel('K')
+ylabel('Diss')
 
 %% load example HVC calcium imaging data (from 6991FirstFewDaysForBatch)
 clear all
@@ -46,7 +72,7 @@ rng(235); % fixed rng seed for reproduceability
 X = trainNEURAL;
 K = 10;
 L = 2/3; % units of seconds
-Lneural = ceil(L*VIDEOfs);
+Lneural = ceil(L*VIDEOfs);  
 Lsong = ceil(L*SONGfs);
 shg
 display('Running seqNMF on real neural data (from songbird HVC, recorded by Emily Mackevicius, Fee Lab)')
@@ -111,7 +137,7 @@ set(legend('Correlation cost', 'Reconstruction cost'), 'Box', 'on')
 set(gca, 'xscale', 'log', 'ytick', [], 'color', 'none')
 set(gca,'color','none','tickdir','out','ticklength', [0.025, 0.025])
 
-%% chose lambda=.005; run multiple times, see number of sig factors
+%% choose lambda=.005; run multiple times, see number of sig factors
 loadings = [];
 pvals = []; 
 is_significant = []; 
@@ -142,7 +168,6 @@ ylabel('% seqNMF runs')
 %% Plot factor-triggered song examples and rastors
 addpath(genpath('misc_elm')); 
 figure; HTriggeredSpec(H,trainSONG,VIDEOfs,SONGfs,Lsong); 
-
 figure; HTriggeredRaster(H,trainNEURAL(indSort,:),Lneural);
 
 %% Example parts-based and events-based factorizations
@@ -211,3 +236,59 @@ plot(mean(RmseTest,2), 'b')
 xlabel('K'); ylabel('RMSE')
 legend('Train', 'Test', 'location', 'northwest')
 drawnow; shg
+
+%% Calculate the sequenciness score
+% WARNING TAKES A WHILE
+load MackeviciusData
+
+nRepsShuff = 15; 
+nRepsColShuff = 15;  % just making an estimate, would need more to test sig
+L = 20; % same as demo
+K = 3; 
+
+X = NEURAL; 
+[N T] = size(X);
+
+% do seqNMF 
+tmp = [];
+
+parfor iteri = 1:nIter
+    rng('shuffle')
+    [~, ~, ~,~,tmp(iteri)] = seqNMF(X, 'L', L, 'K', K, 'lambda', 0, 'showPlot',0);
+end
+
+PEx = max(tmp); 
+
+% do seqNMF on shuffled data
+PExShuff = [];
+parfor repi = 1:nRepsShuff
+    Xshuff = []; 
+    for ni = 1:N
+        timeshuff = randperm(T);
+        Xshuff(ni,:) = X(ni, timeshuff); 
+    end
+    tmp = [];
+    
+    for iteri = 1:nIter
+        rng('shuffle')
+        [~, ~, ~,~,tmp(iteri)] = seqNMF(Xshuff, 'L', L, 'K', K, 'lambda', 0.0, 'showPlot',0);
+    end
+    PExShuff(repi) = max(tmp); 
+end
+        
+% do seqNMF on col shuffled data
+PExColShuff = [];
+parfor repi = 1:nRepsColShuff
+    Xshuff = X(:,[1:L (L + randperm(T-L))]); % don't shuffle to first L bins... these cannot be explained by seqNMF
+    tmp = [];
+    
+    for iteri = 1:nIter
+        rng('shuffle')
+        [~, ~, ~,~,tmp(iteri)] = seqNMF(Xshuff, 'L', L, 'K', K, 'lambda', 0.0, 'showPlot',0);
+    end    
+    PExColShuff(repi) = max(tmp); 
+end
+NoiseFloor = median(PExShuff);
+SyncFloor = median(PExColShuff);
+PAS = (PEx-SyncFloor)./...
+    (PEx-NoiseFloor)
